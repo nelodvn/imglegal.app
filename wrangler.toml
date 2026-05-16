@@ -14,3 +14,10 @@ bucket_name = "imglegal-images"
 [assets]
 directory = "./public"
 binding = "ASSETS"
+
+[unsafe]
+  [[unsafe.bindings]]
+  name = "UPLOAD_RATE_LIMITER"
+  type = "ratelimit"
+  namespace_id = "1001"
+  simple = { limit = 10, period = 60 }

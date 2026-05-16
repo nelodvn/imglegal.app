@@ -11,6 +11,7 @@ const SECURITY_HEADERS = {
 type Bindings = {
   IMAGES: R2Bucket;
   ASSETS: Fetcher;
+  UPLOAD_RATE_LIMITER: RateLimit;
 };
 
 const app = new Hono<{ Bindings: Bindings }>();
@@ -71,6 +72,12 @@ function checkMagicBytes(bytes: Uint8Array): boolean {
 }
 
 app.post("/upload", async (c) => {
+  const ip = c.req.header("CF-Connecting-IP") ?? "unknown";
+  const { success } = await c.env.UPLOAD_RATE_LIMITER.limit({ key: ip });
+  if (!success) {
+    return c.json({ error: "Muitas requisições. Tente novamente em breve." }, 429);
+  }
+
   const formData = await c.req.formData().catch(() => null);
   if (!formData) return c.json({ error: "Requisição inválida" }, 400);
 
