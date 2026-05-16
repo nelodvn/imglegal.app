@@ -1,0 +1,16 @@
+name = "imglegal"
+main = "src/index.ts"
+compatibility_date = "2025-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+routes = [
+  { pattern = "imglegal.app", custom_domain = true }
+]
+
+[[r2_buckets]]
+binding = "IMAGES"
+bucket_name = "imglegal-images"
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
