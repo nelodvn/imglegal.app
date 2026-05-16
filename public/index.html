@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>imglegal — upload de imagens</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      min-height: 100dvh;
+      background: #0f0f0f;
+      color: #e5e5e5;
+      font-family: system-ui, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem 1rem;
+      gap: 2rem;
+    }
+
+    h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -.02em; }
+    h1 span { color: #4628d3; }
+
+    .dropzone {
+      width: min(100%, 480px);
+      border: 2px dashed #3a3a3a;
+      border-radius: 12px;
+      padding: 3rem 2rem;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+      position: relative;
+    }
+    .dropzone.over {
+      border-color: #f6821f;
+      background: rgba(246,130,31,.06);
+    }
+    .dropzone input[type="file"] {
+      position: absolute;
+      inset: 0;
+      opacity: 0;
+      cursor: pointer;
+    }
+    .dropzone p { color: #888; font-size: .95rem; pointer-events: none; }
+    .dropzone p strong { display: block; color: #e5e5e5; font-size: 1.05rem; margin-bottom: .4rem; }
+
+    .preview {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+      width: min(100%, 480px);
+    }
+    .preview img {
+      max-width: 100%;
+      max-height: 260px;
+      border-radius: 8px;
+      object-fit: contain;
+      box-shadow: 0 4px 20px rgba(0,0,0,.5);
+    }
+    .preview .filename { font-size: .85rem; color: #888; }
+
+    .btn {
+      padding: .65rem 1.75rem;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity .15s;
+    }
+    .btn:hover { opacity: .85; }
+    .btn-primary { background: #f6821f; color: #fff; }
+    .btn-secondary { background: #2a2a2a; color: #e5e5e5; border: 1px solid #3a3a3a; }
+
+    .progress-wrap {
+      display: none;
+      width: min(100%, 480px);
+      flex-direction: column;
+      gap: .6rem;
+    }
+    .progress-bar {
+      width: 100%;
+      height: 6px;
+      background: #2a2a2a;
+      border-radius: 99px;
+      overflow: hidden;
+    }
+    .progress-bar div {
+      height: 100%;
+      background: #f6821f;
+      width: 0%;
+      transition: width .2s;
+    }
+    .progress-label { font-size: .85rem; color: #888; }
+
+    .error {
+      display: none;
+      color: #e05c5c;
+      font-size: .9rem;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+  <h1>img<span>legal</span></h1>
+
+  <div class="dropzone" id="dropzone">
+    <input type="file" id="fileInput" accept="image/*" />
+    <p>
+      <strong>Arraste uma imagem ou clique para selecionar</strong>
+      Todos os formatos de imagem — até 10 MB
+    </p>
+  </div>
+
+  <div class="preview" id="preview">
+    <img id="previewImg" src="" alt="pré-visualização" />
+    <span class="filename" id="previewName"></span>
+    <div style="display:flex;gap:.75rem">
+      <button class="btn btn-secondary" id="cancelBtn">Cancelar</button>
+      <button class="btn btn-primary" id="uploadBtn">Enviar imagem</button>
+    </div>
+  </div>
+
+  <div class="progress-wrap" id="progressWrap">
+    <span class="progress-label" id="progressLabel">Enviando…</span>
+    <div class="progress-bar"><div id="progressFill"></div></div>
+  </div>
+
+  <p class="error" id="error"></p>
+
+  <script>
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('fileInput');
+    const preview = document.getElementById('preview');
+    const previewImg = document.getElementById('previewImg');
+    const previewName = document.getElementById('previewName');
+    const cancelBtn = document.getElementById('cancelBtn');
+    const uploadBtn = document.getElementById('uploadBtn');
+    const progressWrap = document.getElementById('progressWrap');
+    const progressFill = document.getElementById('progressFill');
+    const progressLabel = document.getElementById('progressLabel');
+    const errorEl = document.getElementById('error');
+
+    let selectedFile = null;
+
+    function showError(msg) {
+      errorEl.textContent = msg;
+      errorEl.style.display = 'block';
+      setTimeout(() => { errorEl.style.display = 'none'; }, 5000);
+    }
+
+    function showPreview(file) {
+      if (!file.type.startsWith('image/')) {
+        showError('Somente arquivos de imagem são aceitos.');
+        return;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        showError('Arquivo muito grande. Máximo 10 MB.');
+        return;
+      }
+      selectedFile = file;
+      const url = URL.createObjectURL(file);
+      previewImg.src = url;
+      previewName.textContent = `${file.name} (${(file.size / 1024).toFixed(0)} KB)`;
+      dropzone.style.display = 'none';
+      preview.style.display = 'flex';
+    }
+
+    function reset() {
+      selectedFile = null;
+      fileInput.value = '';
+      previewImg.src = '';
+      dropzone.style.display = '';
+      preview.style.display = 'none';
+      progressWrap.style.display = 'none';
+      result.style.display = 'none';
+      progressFill.style.width = '0%';
+    }
+
+    fileInput.addEventListener('change', () => {
+      if (fileInput.files[0]) showPreview(fileInput.files[0]);
+    });
+
+    dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.classList.add('over'); });
+    dropzone.addEventListener('dragleave', () => dropzone.classList.remove('over'));
+    dropzone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropzone.classList.remove('over');
+      if (e.dataTransfer.files[0]) showPreview(e.dataTransfer.files[0]);
+    });
+
+    cancelBtn.addEventListener('click', reset);
+
+    uploadBtn.addEventListener('click', () => {
+      if (!selectedFile) return;
+      preview.style.display = 'none';
+      progressWrap.style.display = 'flex';
+      errorEl.style.display = 'none';
+
+      const form = new FormData();
+      form.append('image', selectedFile);
+
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', '/upload');
+
+      xhr.upload.addEventListener('progress', (e) => {
+        if (e.lengthComputable) {
+          const pct = Math.round((e.loaded / e.total) * 100);
+          progressFill.style.width = pct + '%';
+          progressLabel.textContent = `Enviando… ${pct}%`;
+        }
+      });
+
+      xhr.addEventListener('load', () => {
+        progressWrap.style.display = 'none';
+        if (xhr.status === 200) {
+          const data = JSON.parse(xhr.responseText);
+          window.location.href = data.url;
+        } else {
+          let msg = 'Erro ao enviar a imagem.';
+          try { msg = JSON.parse(xhr.responseText).error || msg; } catch {}
+          showError(msg);
+          reset();
+        }
+      });
+
+      xhr.addEventListener('error', () => {
+        progressWrap.style.display = 'none';
+        showError('Erro de conexão. Tente novamente.');
+        reset();
+      });
+
+      xhr.send(form);
+    });
+
+  </script>
+</body>
+</html>
